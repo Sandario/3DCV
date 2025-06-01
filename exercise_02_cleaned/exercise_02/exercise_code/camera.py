@@ -63,7 +63,15 @@ class Pinhole(Camera):
         # project the point pt, considering the pinhole model.                 #
         ########################################################################
 
-        pass
+        X, Y, Z = pt
+
+        if Z == 0:
+            raise ValueError("Z coordinate is zero, cannot project to image plane.")
+
+        u = X / Z
+        v = Y / Z
+
+        pix = np.array([u, v])
 
         ########################################################################
         #                           END OF YOUR CODE                           #
