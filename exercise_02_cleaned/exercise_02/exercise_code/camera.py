@@ -63,13 +63,16 @@ class Pinhole(Camera):
         # project the point pt, considering the pinhole model.                 #
         ########################################################################
 
-        X, Y, Z = pt
+        x, y, z = pt
 
-        if Z == 0:
+        if z == 0:
             raise ValueError("Z coordinate is zero, cannot project to image plane.")
 
-        u = X / Z
-        v = Y / Z
+        x = x / z
+        y = y / z
+
+        p_img_hom = self.K @ np.array([x, y, 1])
+        u, v = p_img_hom[:2]
 
         pix = np.array([u, v])
 
@@ -94,7 +97,13 @@ class Pinhole(Camera):
         # the desired point, not the depth.                                    #
         ########################################################################
 
-        pass
+        u, v = pix
+        K_inv = np.linalg.inv(self.K)
+        direction = np.array([u, v, 1.0])
+        direction = K_inv @ direction
+        direction /= np.linalg.norm(direction)
+
+        final_pt = d * direction
 
         ########################################################################
         #                           END OF YOUR CODE                           #
@@ -121,7 +130,34 @@ class Fov(Camera):
         # project the point pt, considering the Fov model.                     #
         ########################################################################
 
-        pass
+        x, y, z = pt
+
+        if z == 0:
+            raise ValueError("Z coordinate is zero, cannot project to image plane.")
+
+        x_u = x / z
+        y_u = y / z
+
+        r_u = np.sqrt(x_u ** 2 + y_u ** 2)
+
+        if r_u > 1e-8:
+            # Distorted radius
+            tan_half_w = np.tan(self.W / 2)
+            r_d = (1.0 / self.W) * np.arctan(2 * r_u * tan_half_w)
+
+            # Scale to distorted normalized coordinates
+            scale = r_d / r_u
+            x_d = x_u * scale
+            y_d = y_u * scale
+        else:
+            # No distortion at center
+            x_d, y_d = x_u, y_u
+
+        p_img_hom = self.K @ np.array([x_d, y_d, 1.0])
+        u, v = p_img_hom[:2]
+        #u, v = (1/(self.W*p_img_hom[:2]))*np.arctan(2*p_img_hom[:2]*np.tan(self.W/2))
+
+        pix = np.array([u, v])
 
         ########################################################################
         #                           END OF YOUR CODE                           #
@@ -144,8 +180,35 @@ class Fov(Camera):
         # the desired point, not the depth.                                    #
         ########################################################################
 
+        u, v = pix
+        K_inv = np.linalg.inv(self.K)
+        direction = np.array([u, v, 1.0])
+        direction = K_inv @ direction
+        x_d, y_d = direction[0], direction[1]
 
-        pass
+        r_d = np.sqrt(x_d ** 2 + y_d ** 2)
+
+        if r_d > 1e-8:
+            # Compute undistorted radius r_u
+            tan_half_w = np.tan(self.W / 2)
+            r_u = np.tan(r_d * self.W) / (2 * tan_half_w)
+
+            # Scale distorted normalized coordinates to undistorted
+            scale = r_u / r_d
+            x_u = x_d * scale
+            y_u = y_d * scale
+        else:
+            # No distortion at center
+            x_u, y_u = x_d, y_d
+
+        # Create direction vector
+        direction = np.array([x_u, y_u, 1.0])
+
+        # Normalize direction
+        direction_normalized = direction / np.linalg.norm(direction)
+
+        # Scale by distance
+        final_pt = d * direction_normalized
 
         ########################################################################
         #                           END OF YOUR CODE                           #
