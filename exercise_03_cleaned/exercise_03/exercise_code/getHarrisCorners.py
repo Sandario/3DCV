@@ -21,9 +21,32 @@ def getHarrisCorners(M, kappa, theta):
     # - Use non-maximum suppression to find the corners.                   #
     ########################################################################
 
+    # Extract structure tensor components
+    m11 = M[..., 0, 0]
+    m12 = M[..., 0, 1]
+    m22 = M[..., 1, 1]
 
-    pass
+    # Compute determinant and trace of M
+    det_M = m11 * m22 - m12 ** 2
+    trace_M = m11 + m22
 
+    # Harris response score
+    score = det_M - kappa * (trace_M ** 2)
+
+    # Detect local maxima above threshold
+    H, W = score.shape
+    coords = []
+    for y in range(1, H - 1):
+        for x in range(1, W - 1):
+            c = score[y, x]
+            if c > theta and \
+                    c > score[y - 1, x] and \
+                    c > score[y + 1, x] and \
+                    c > score[y, x - 1] and \
+                    c > score[y, x + 1]:
+                coords.append((y, x))
+
+    points = np.array(coords, dtype=np.int32)
     ########################################################################
     #                           END OF YOUR CODE                           #
     ########################################################################

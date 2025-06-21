@@ -2,6 +2,7 @@
 from scipy.signal import convolve2d as conv2
 import numpy as np
 import cv2
+from scipy import ndimage
 
 def getGaussiankernel(sigma):
     # compute the 2D Gaussian kernel
@@ -21,8 +22,20 @@ def getGaussiankernel(sigma):
     # - The Gaussian kernel is separable.                                  #
     ########################################################################
 
+    # Kernel size: 4*sigma + 1, ensure it's odd
+    k = int(4 * sigma + 1)
+    if k % 2 == 0:
+        k += 1
 
-    pass
+    # 1D Gaussian
+    ax = np.arange(-k // 2 + 1, k // 2 + 1)
+    G1D = np.exp(-(ax ** 2) / (2 * sigma ** 2))
+    G1D = G1D / np.sum(G1D)  # Normalize
+
+    # Outer product to get 2D kernel
+    kernel_2d = np.outer(G1D, G1D)
+
+    G = kernel_2d
 
     ########################################################################
     #                           END OF YOUR CODE                           #
@@ -52,7 +65,10 @@ def getGradients(I, sigma=2):
     ########################################################################
 
 
-    pass
+    I_p = np.pad(I_, 1, mode="edge")
+
+    Ix = 0.5*(I_p[:,2:] - I_p[:, :-2])[1:-1, :]
+    Iy = 0.5*(I_p[2:,:] - I_p[:-2, :])[:, 1:-1]
 
     ########################################################################
     #                           END OF YOUR CODE                           #
@@ -84,8 +100,7 @@ def getTemporalPartialDerivative(I1, I2, sigma=2):
     # Compute the temporal gradient with forward differences               #
     ########################################################################
 
-
-    pass
+    It = I2_ - I1_
 
     ########################################################################
     #                           END OF YOUR CODE                           #
@@ -117,8 +132,19 @@ def getM(Ix, Iy, sigma=7):
     # M22: numpy.ndarray (element of structure tensor)                     #
     ########################################################################
 
+    # Compute gradient products
+    Ixx = Ix * Ix
+    Ixy = Ix * Iy
+    Iyy = Iy * Iy
 
-    pass
+    # Create Gaussian kernel
+    G = getGaussiankernel(sigma)
+
+    # Smooth the gradient products using Gaussian
+    M11 = ndimage.convolve(Ixx, G, mode='nearest')
+    M12 = ndimage.convolve(Ixy, G, mode='nearest')  # == m21
+    M22 = ndimage.convolve(Iyy, G, mode='nearest')
+
 
     ########################################################################
     #                           END OF YOUR CODE                           #
@@ -159,8 +185,17 @@ def getq(It, Ix, Iy, sigma=7):
     # q2: numpy.ndarray (element of tensor q)                              #
     ########################################################################
 
+    Ix_It = Ix * It
+    Iy_It = Iy * It
 
-    pass
+    # Gaussian smoothing
+    if sigma > 0:
+        k = int(np.ceil(4 * sigma + 1))
+        q1 = cv2.GaussianBlur(Ix_It, (k, k), sigma)
+        q2 = cv2.GaussianBlur(Iy_It, (k, k), sigma)
+    else:
+        q1 = Ix_It
+        q2 = Iy_It
 
     ########################################################################
     #                           END OF YOUR CODE                           #

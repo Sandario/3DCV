@@ -17,8 +17,25 @@ def getFlow(M, q, points):
     #                                                                      #
     ########################################################################
 
+    H, W = q.shape[:2]
+    v = np.zeros((H, W, 2), dtype=np.float32)
 
-    pass
+    # Avoid division by zero / ill-conditioned matrices
+    eps = 1e-5
+
+    for y in range(H):
+        for x in range(W):
+            M_local = M[y, x]
+            q_local = q[y, x]
+
+            # Check if M is invertible
+            if np.linalg.cond(M_local) < 1 / eps:
+                v[y, x] = -np.linalg.inv(M_local) @ q_local
+            else:
+                v[y, x] = np.array([0.0, 0.0])
+
+    # Extract flow at the selected points
+    v_points = np.array([v[y, x] for y, x in points], dtype=np.float32)
 
     ########################################################################
     #                           END OF YOUR CODE                           #
